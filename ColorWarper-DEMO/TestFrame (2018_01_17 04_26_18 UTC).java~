@@ -1,0 +1,203 @@
+/** 
+ * This is the TestFrame class - the parent container for all GUI Componenets in the ColorWarp Application.
+ * It is instantiated in the TestDriver class, which contains the main run method of the application.
+ * 
+ * @author  Edward Weiss
+  * @version 1.0
+  * @since   2017-05-07 
+*/
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.*;
+import java.io.*;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseEvent;
+
+public class TestFrame extends JFrame implements MouseListener{
+  
+//  private components;
+  private Buttons buttons;                                      
+  private JScrollPane scrollpane;
+  private JLabel label;
+  private BufferedImage curr_image;
+  private BufferedImage last_image;
+  
+  private File curr_file;
+  private String extension;
+  private JFileChooser chooser = new JFileChooser();
+  private boolean start = false;
+  
+  private int xpos;
+  private int ypos;
+  
+  public TestFrame(Buttons buttons){
+    
+    super("Color Warping Application");
+    setLayout(new BorderLayout()); 
+    setExtendedState(JFrame.MAXIMIZED_BOTH);
+    try{    
+      label = new JLabel(new ImageIcon(ImageIO.read(new File("ColorWarp.png"))));    
+      scrollpane = new JScrollPane(label);
+      scrollpane.addMouseListener(this);
+    }catch(IOException e){
+      System.out.println("Fuck you");
+    } 
+    scrollpane.setMaximumSize(new Dimension(getWidth(),getHeight()-100));
+    getContentPane().add(scrollpane);
+    getContentPane().add(buttons,BorderLayout.SOUTH);    
+    this.buttons=buttons;
+    pack();
+    setVisible(true);
+    setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+//  System.out.println(scrollpane.getWidth()+","+scrollpane.getHeight()); // for Testing
+  
+  }
+  
+  /**
+   */ 
+  public BufferedImage getImage(){
+    return curr_image;
+  }
+  /**
+   */ 
+  public void setImage(BufferedImage image){
+    curr_image=image;
+  }
+  /**
+   */ 
+  public void openImageFile(){
+    
+    int returnVal = chooser.showOpenDialog(this);      
+      if (returnVal == JFileChooser.APPROVE_OPTION) {
+        curr_file = chooser.getSelectedFile();                     
+      }      
+      try{
+        curr_image = ImageIO.read(curr_file);
+      }catch(IOException e){
+        System.out.println("Error Opening Image from File");
+      }      
+      String s =  curr_file.getPath();
+      extension = s.substring(s.length()-3);
+      System.out.println(extension);
+      System.out.println(curr_image.getWidth()+","+curr_image.getHeight());
+  }
+  /**
+   */ 
+   public void saveImageFile(){  
+    
+      chooser.setDialogTitle("Specify a file to save");
+      int userSelection = chooser.showSaveDialog(this);
+ 
+      if (userSelection == JFileChooser.APPROVE_OPTION) {              
+        try{
+          ImageIO.write(curr_image, extension , chooser.getSelectedFile());
+        }catch(IOException e){
+          System.out.println("Error Saving File.");
+          e.printStackTrace();
+        }
+      }
+  }         
+  /**
+   */ 
+   public JScrollPane getScrollPane(){   
+    return scrollpane;
+   }
+   /**
+   */   
+   public void loadNewImage(){    
+    
+    try{    
+      label = new JLabel(new ImageIcon(ImageIO.read(curr_file)));    
+      scrollpane.setViewportView(label);
+    }catch(IOException e){
+      System.out.println("Image Loading Error");
+    }    
+    getContentPane().add(scrollpane);
+    scrollpane.revalidate();
+    scrollpane.repaint();
+    revalidate();
+    repaint();
+    pack();
+    setExtendedState(JFrame.MAXIMIZED_BOTH);
+    if (!start){
+      start=true;
+      buttons.setupTools();
+    }
+    System.out.println(scrollpane.getWidth()+","+scrollpane.getHeight());
+  }
+   /**
+   */ 
+   public void clickSetXY(MouseEvent e){
+     
+     try{       
+       int xconstant = (scrollpane.getWidth()/2) - (curr_image.getWidth()/2);      
+       int yconstant = (scrollpane.getHeight()/2) - (curr_image.getHeight()/2);      
+       if(curr_image.getHeight()>scrollpane.getHeight()){
+       xconstant-=8;
+       yconstant+=(curr_image.getHeight()-scrollpane.getHeight())/2;
+       }
+       if(curr_image.getWidth()>scrollpane.getWidth()){
+       yconstant+=8;
+       xconstant+=(curr_image.getWidth()-scrollpane.getWidth())/2;
+       }      
+       int xscrolled = getScrollPane().getHorizontalScrollBar().getValue();
+       int yscrolled = getScrollPane().getVerticalScrollBar().getValue();
+       xpos = e.getX() + xscrolled - xconstant;
+       ypos = e.getY() + yscrolled - yconstant;     
+     }catch(Throwable a){     
+       System.out.println("Mouse click out of bounds");
+     }
+   }
+   /**
+   */ 
+   public void mouseClicked(MouseEvent e){
+   
+     try{
+      clickSetXY(e);      
+      int[] pixel = new int[4];      
+      curr_image.getRaster().getPixel(xpos,ypos,pixel);
+      int r = pixel[0];
+      int g = pixel[1];
+      int b = pixel[2];
+      
+      buttons.outValues(xpos,ypos,r,g,b);
+      }catch(Throwable a){     
+       System.out.println("Mouse click out of bounds");
+     }
+   }
+   /**
+   */ 
+   public void mousePressed(MouseEvent e){
+     
+     if(buttons.isBounding()){
+      try{ 
+      clickSetXY(e);       
+      buttons.setBoundingLT(xpos,ypos);
+      }catch(Throwable a){     
+        System.out.println("Mouse click out of bounds");
+      }
+     }     
+   }   
+   /**
+   */ 
+   public void mouseReleased(MouseEvent e) {
+   
+      if(buttons.isBounding()){        
+        try{
+        clickSetXY(e);       
+        buttons.setBoundingRB(xpos,ypos);
+        }catch(Throwable a){     
+          System.out.println("Mouse click out of bounds");
+        }       
+      }  
+   }
+   /**
+   */ 
+   public void mouseEntered(MouseEvent e){}
+   /**
+   */ 
+   public void mouseExited(MouseEvent e){}
+}
